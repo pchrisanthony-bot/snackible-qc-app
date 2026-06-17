@@ -101,7 +101,7 @@ export default function DashboardPage() {
     if (mv == null || mv === 0) return "MATCH";
     const diff = Math.abs(mv - ov) / mv;
     if (diff > 0.15) return "CRITICAL";
-    if (diff > 0.03) return "WARNING";
+    if (diff > 0.001) return "WARNING";
     return "MATCH";
   }
 

@@ -87,13 +87,13 @@ function buildQCResult(
           severity: "CRITICAL",
           message: `${f.label}: label shows ${ocrVal}${f.unit}, master is ${masterVal}${f.unit} (${(diff * 100).toFixed(1)}% off)`,
         });
-      } else if (diff > 0.03) {
+      } else if (diff > 0.001) {
         mismatches.push({
           field: f.label,
           master_value: `${masterVal}${f.unit}`,
           artwork_value: `${ocrVal}${f.unit}`,
           severity: "WARNING",
-          message: `${f.label}: ${(diff * 100).toFixed(1)}% deviation from master`,
+          message: `${f.label}: label ${ocrVal}${f.unit} ≠ master ${masterVal}${f.unit} (${(diff * 100).toFixed(2)}% off)`,
         });
       }
     }
