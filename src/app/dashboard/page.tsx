@@ -61,7 +61,7 @@ function NutrientRow({
 export default function DashboardPage() {
   const { state } = useAnalysis();
   const router = useRouter();
-  const { fssaiResult, qcResult, intelligenceResult, productMeta, comparisonPackG, masterAtPack, ocrAtPack } = state;
+  const { fssaiResult, qcResult, intelligenceResult, productMeta, comparisonPackG, masterAtPack, ocrAtPack, ocrServingG } = state;
 
   if (!state.hasAnalysis) {
     return <EmptyState message="No product loaded yet." />;
@@ -93,13 +93,21 @@ export default function DashboardPage() {
     { label: "Unsaturated Fat",  key: "unsaturated_fat_g", unit: "g"  },
   ];
 
+  const ABS_FLOOR: Record<string, number> = {
+    energy_kcal: 1, protein_g: 0.05, total_fat_g: 0.05, saturated_fat_g: 0.05,
+    trans_fat_g: 0.05, carbohydrates_g: 0.05, total_sugar_g: 0.05, added_sugar_g: 0.05,
+    dietary_fibre_g: 0.05, sodium_mg: 1, calcium_mg: 1, cholesterol_mg: 1, unsaturated_fat_g: 0.05,
+  };
+
   function getSeverity(key: string): "MATCH" | "WARNING" | "CRITICAL" | "NO_DATA" {
     if (!ocr) return "NO_DATA";
     const mv = master[key];
     const ov = ocr[key];
     if (ov == null || ov === undefined) return "NO_DATA";
     if (mv == null || mv === 0) return "MATCH";
-    const diff = Math.abs(mv - ov) / mv;
+    const absDiff = Math.abs(mv - ov);
+    if (absDiff <= (ABS_FLOOR[key] ?? 0.05)) return "MATCH";
+    const diff = absDiff / mv;
     if (diff > 0.15) return "CRITICAL";
     if (diff > 0.001) return "WARNING";
     return "MATCH";
@@ -184,6 +192,15 @@ export default function DashboardPage() {
             </div>
           ) : (
             <>
+              {ocrServingG != null && Math.abs(ocrServingG - comparisonPackG) >= 1 && (
+                <div className="mx-3 mt-3 mb-1 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-amber-700">
+                    Label prints nutrition per <strong>{ocrServingG}g serving</strong> — scaled to {comparisonPackG}g for comparison.
+                    If the label uses a different serving than the pack weight, select the matching pack size in the selector.
+                  </p>
+                </div>
+              )}
               <div className="px-3 pt-1 pb-0">
                 <table className="w-full">
                   <thead>

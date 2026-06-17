@@ -73,12 +73,23 @@ function buildQCResult(
       { key: "unsaturated_fat_g", label: "Unsaturated Fat", unit: "g"  },
     ];
 
+    // Absolute tolerance floors: label rounding means e.g. 1.95g vs 1.96g is acceptable
+    const ABS_FLOOR: Record<string, number> = {
+      energy_kcal: 1, protein_g: 0.05, total_fat_g: 0.05, saturated_fat_g: 0.05,
+      trans_fat_g: 0.05, carbohydrates_g: 0.05, total_sugar_g: 0.05, added_sugar_g: 0.05,
+      dietary_fibre_g: 0.05, sodium_mg: 1, calcium_mg: 1, cholesterol_mg: 1, unsaturated_fat_g: 0.05,
+    };
+
     for (const f of FIELDS) {
       const masterVal = master[f.key];
       const ocrVal = ocr[f.key];
       if (ocrVal == null || masterVal == null || masterVal === 0) continue;
 
-      const diff = Math.abs(masterVal - ocrVal) / masterVal;
+      const absDiff = Math.abs(masterVal - ocrVal);
+      const floor = ABS_FLOOR[f.key] ?? 0.05;
+      if (absDiff <= floor) continue; // within label-rounding tolerance
+
+      const diff = absDiff / masterVal;
       if (diff > 0.15) {
         mismatches.push({
           field: f.label,
@@ -314,6 +325,7 @@ export default function UploadPage() {
         comparisonPackG: packG,
         masterAtPack,
         ocrAtPack,
+        ocrServingG: ocrExtract?.serving_size_g ?? null,
       },
     });
 

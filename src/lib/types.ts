@@ -156,4 +156,6 @@ export interface AnalysisState {
   masterAtPack: NutritionPer100g;
   /** OCR data scaled to the comparison pack size (null if no label uploaded) */
   ocrAtPack: Partial<NutritionPer100g> | null;
+  /** Raw serving size (g) that the OCR label returned — may differ from comparisonPackG */
+  ocrServingG: number | null;
 }

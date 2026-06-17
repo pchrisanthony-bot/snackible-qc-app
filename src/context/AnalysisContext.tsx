@@ -37,6 +37,7 @@ const initialState: AnalysisState = {
   comparisonPackG: 100,
   masterAtPack: EMPTY_NUTRITION,
   ocrAtPack: null,
+  ocrServingG: null,
 };
 
 type Action =
