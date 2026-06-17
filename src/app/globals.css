@@ -1,0 +1,70 @@
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@400;600;700;800&family=Mulish:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --green: #2D6A4F;
+  --dark-green: #1E4D39;
+  --light-green: #EAF3DE;
+  --mid-green: #C5DFAC;
+  --amber: #FBAE25;
+  --amber-light: #FEF3D8;
+  --cream: #FDF8F0;
+  --text-primary: #1A2B22;
+  --text-secondary: #4A6358;
+  --text-muted: #7A9186;
+  --border: #DCE8E0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Mulish', sans-serif;
+  background-color: #F4F7F5;
+  color: var(--text-primary);
+}
+
+h1, h2, h3, h4 {
+  font-family: 'Raleway', sans-serif;
+}
+
+.font-mono, code, .data-value {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--light-green);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--mid-green);
+  border-radius: 3px;
+}
+
+/* Card shadow */
+.card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(45, 106, 79, 0.06);
+}
+
+/* Animated skeleton */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #e8f0eb 25%, #f0f7f2 50%, #e8f0eb 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
