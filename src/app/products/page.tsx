@@ -1,0 +1,525 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { Product, NutritionBlock, RDABlock } from "../../lib/types";
+
+const NUTRIENT_ROWS: { label: string; key: keyof NutritionBlock; unit: string }[] = [
+  { label: "Energy", key: "energy_kcal", unit: "kcal" },
+  { label: "Protein", key: "protein_g", unit: "g" },
+  { label: "Carbohydrates", key: "carbohydrate_g", unit: "g" },
+  { label: "Total Sugar", key: "total_sugar_g", unit: "g" },
+  { label: "Added Sugar", key: "added_sugar_g", unit: "g" },
+  { label: "Dietary Fibre", key: "dietary_fibre_g", unit: "g" },
+  { label: "Total Fat", key: "total_fat_g", unit: "g" },
+  { label: "Saturated Fat", key: "saturated_fat_g", unit: "g" },
+  { label: "Trans Fat", key: "trans_fat_g", unit: "g" },
+  { label: "Sodium", key: "sodium_mg", unit: "mg" },
+  { label: "Calcium", key: "calcium_mg", unit: "mg" },
+];
+
+// Map nutrient key to RDA block key
+const RDA_KEY_MAP: Partial<Record<keyof NutritionBlock, keyof RDABlock>> = {
+  energy_kcal: "energy_pct",
+  protein_g: "protein_pct",
+  added_sugar_g: "added_sugar_pct",
+  dietary_fibre_g: "dietary_fibre_pct",
+  total_fat_g: "total_fat_pct",
+  saturated_fat_g: "saturated_fat_pct",
+  trans_fat_g: "trans_fat_pct",
+  sodium_mg: "sodium_pct",
+  calcium_mg: "calcium_pct",
+};
+
+function fmtVal(val: number | null | undefined, unit: string): string {
+  if (val === null || val === undefined) return "—";
+  return `${val}${unit}`;
+}
+
+function Chip({ label, color }: { label: string; color: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "2px 8px",
+        borderRadius: 999,
+        fontSize: 11,
+        fontWeight: 500,
+        background: `${color}26`,
+        color,
+        marginRight: 4,
+        marginBottom: 4,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function SheetBadge({ sheet }: { sheet: string }) {
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "2px 8px",
+        borderRadius: 4,
+        fontSize: 10,
+        fontWeight: 600,
+        background: "rgba(6,170,144,0.12)",
+        color: "var(--accent-teal)",
+        letterSpacing: "0.03em",
+        textTransform: "uppercase",
+      }}
+    >
+      {sheet}
+    </span>
+  );
+}
+
+function ProductDrawer({ product, onClose }: { product: Product; onClose: () => void }) {
+  const [showFullIngredients, setShowFullIngredients] = useState(false);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
+  const packSizes: string[] = [];
+  if (product.small_pack_g) packSizes.push(`${product.small_pack_g}g`);
+  if (product.large_pack_g) packSizes.push(`${product.large_pack_g}g`);
+
+  return (
+    <>
+      {/* Overlay */}
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 40,
+        }}
+      />
+      {/* Drawer */}
+      <div
+        style={{
+          position: "fixed", top: 0, right: 0, bottom: 0,
+          width: 480, background: "var(--bg-surface)",
+          borderLeft: "1px solid var(--border)",
+          zIndex: 50, overflowY: "auto", padding: 24,
+          display: "flex", flexDirection: "column", gap: 20,
+        }}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: "var(--text-primary)", flex: 1, marginRight: 12 }}>
+            {product.name}
+          </h2>
+          <button
+            onClick={onClose}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: "var(--text-muted)", fontSize: 20, padding: 4, lineHeight: 1,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* USP chips */}
+        {product.brand_usp.length > 0 && (
+          <div>
+            {product.brand_usp.map((usp, i) => (
+              <Chip key={i} label={usp} color="var(--accent-teal)" />
+            ))}
+          </div>
+        )}
+
+        {/* Sheet + MRP row */}
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <SheetBadge sheet={product.sheet} />
+          {product.mrp && (
+            <span style={{ color: "var(--text-secondary)", fontSize: 13 }}>
+              MRP: <strong style={{ color: "var(--text-primary)" }}>{product.mrp}</strong>
+            </span>
+          )}
+          {packSizes.length > 0 && (
+            <span style={{ color: "var(--text-muted)", fontSize: 12 }}>
+              {packSizes.join(" · ")}
+            </span>
+          )}
+        </div>
+
+        {/* Allergens */}
+        {product.allergens && (
+          <div style={{
+            background: "rgba(232,64,64,0.08)", borderRadius: 8,
+            padding: "10px 14px", border: "1px solid rgba(232,64,64,0.2)",
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--accent-red)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Allergens
+            </div>
+            <div style={{ color: "var(--text-secondary)", fontSize: 13 }}>{product.allergens}</div>
+          </div>
+        )}
+
+        {/* Ingredients */}
+        {product.ingredients && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Ingredients
+            </div>
+            <div
+              style={{
+                color: "var(--text-secondary)", fontSize: 13, lineHeight: 1.6,
+                overflow: "hidden",
+                display: "-webkit-box",
+                WebkitBoxOrient: "vertical",
+                WebkitLineClamp: showFullIngredients ? "unset" : 2,
+              } as React.CSSProperties}
+            >
+              {product.ingredients}
+            </div>
+            {product.ingredients.length > 120 && (
+              <button
+                onClick={() => setShowFullIngredients(!showFullIngredients)}
+                style={{
+                  background: "none", border: "none", cursor: "pointer",
+                  color: "var(--accent-teal)", fontSize: 12, padding: "4px 0", marginTop: 4,
+                }}
+              >
+                {showFullIngredients ? "Show less" : "Show more"}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Nutrition Table */}
+        {product.nutrition.length > 0 && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Nutritional Information
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr>
+                    <th style={{
+                      textAlign: "left", padding: "8px 10px", color: "var(--text-muted)",
+                      fontWeight: 500, borderBottom: "1px solid var(--border)", minWidth: 110,
+                    }}>
+                      Nutrient
+                    </th>
+                    {product.nutrition.map((nb) => (
+                      <th
+                        key={nb.grammage}
+                        style={{
+                          textAlign: "right", padding: "8px 10px",
+                          background: nb.grammage === 100 ? "rgba(6,170,144,0.15)" : "transparent",
+                          color: nb.grammage === 100 ? "var(--accent-teal)" : "var(--text-secondary)",
+                          fontWeight: 600,
+                          borderBottom: "1px solid var(--border)",
+                          minWidth: 70,
+                        }}
+                      >
+                        {nb.grammage}g
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {NUTRIENT_ROWS.map(({ label, key, unit }, rowIdx) => (
+                    <tr key={key} style={{ background: rowIdx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.02)" }}>
+                      <td style={{ padding: "7px 10px", color: "var(--text-secondary)", borderBottom: "1px solid var(--border)" }}>
+                        {label}
+                      </td>
+                      {product.nutrition.map((nb) => {
+                        const raw = nb[key];
+                        return (
+                          <td
+                            key={nb.grammage}
+                            style={{
+                              padding: "7px 10px", textAlign: "right",
+                              color: "var(--text-primary)",
+                              fontVariantNumeric: "tabular-nums",
+                              borderBottom: "1px solid var(--border)",
+                              background: nb.grammage === 100 ? "rgba(6,170,144,0.04)" : "transparent",
+                            }}
+                          >
+                            {fmtVal(raw as number | null, unit)}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                  {/* RDA % row */}
+                  <tr>
+                    <td colSpan={product.nutrition.length + 1} style={{ padding: "8px 10px", color: "var(--text-muted)", fontSize: 10, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                      % RDA
+                    </td>
+                  </tr>
+                  {NUTRIENT_ROWS.map(({ label, key }) => {
+                    const rdaKey = RDA_KEY_MAP[key];
+                    if (!rdaKey) return null;
+                    return (
+                      <tr key={`rda-${key}`} style={{ background: "rgba(6,170,144,0.03)" }}>
+                        <td style={{ padding: "6px 10px", color: "var(--text-muted)", fontSize: 11, borderBottom: "1px solid var(--border)" }}>
+                          {label} %RDA
+                        </td>
+                        {product.nutrition.map((nb) => {
+                          const rdaBlock = product.rda.find(
+                            (r) => Math.abs(r.grammage - nb.grammage) < 0.5
+                          );
+                          const pct = rdaBlock ? (rdaBlock[rdaKey] as number | null) : null;
+                          return (
+                            <td
+                              key={nb.grammage}
+                              style={{
+                                padding: "6px 10px", textAlign: "right",
+                                color: "var(--text-secondary)", fontSize: 11,
+                                fontVariantNumeric: "tabular-nums",
+                                borderBottom: "1px solid var(--border)",
+                              }}
+                            >
+                              {pct !== null && pct !== undefined ? `${pct}%` : "—"}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Manufacturer + Shelf Life */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {product.manufacturer && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Manufacturer
+              </div>
+              <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>{product.manufacturer}</div>
+            </div>
+          )}
+          {product.shelf_life && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Shelf Life
+              </div>
+              <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>{product.shelf_life}</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function ProductCard({ product, onClick }: { product: Product; onClick: () => void }) {
+  const packSizes: string[] = [];
+  if (product.small_pack_g) packSizes.push(`${product.small_pack_g}g`);
+  if (product.large_pack_g) packSizes.push(`${product.large_pack_g}g`);
+
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: "var(--bg-surface)",
+        border: "1px solid var(--border)",
+        borderRadius: 12,
+        padding: 24,
+        cursor: "pointer",
+        transition: "border-color 0.15s, background 0.15s",
+        position: "relative",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(6,170,144,0.4)";
+        (e.currentTarget as HTMLDivElement).style.background = "var(--bg-elevated)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border)";
+        (e.currentTarget as HTMLDivElement).style.background = "var(--bg-surface)";
+      }}
+    >
+      <div style={{ fontWeight: 600, fontSize: 15, color: "var(--text-primary)", marginBottom: 10, lineHeight: 1.3 }}>
+        {product.name}
+      </div>
+
+      {/* USP chips (max 3) */}
+      <div style={{ marginBottom: 10 }}>
+        {product.brand_usp.slice(0, 3).map((usp, i) => (
+          <Chip key={i} label={usp} color="var(--accent-teal)" />
+        ))}
+      </div>
+
+      {/* Pack sizes */}
+      {packSizes.length > 0 && (
+        <div style={{ color: "var(--text-muted)", fontSize: 12, marginBottom: 10 }}>
+          {packSizes.join(" · ")}
+        </div>
+      )}
+
+      {/* Sheet badge bottom right */}
+      <div style={{ position: "absolute", bottom: 14, right: 14 }}>
+        <SheetBadge sheet={product.sheet} />
+      </div>
+    </div>
+  );
+}
+
+export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [activeSheets, setActiveSheets] = useState<Set<string>>(new Set());
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  useEffect(() => {
+    fetch("/api/products")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setProducts(data);
+        } else {
+          setError(data.error || "Unknown error");
+        }
+      })
+      .catch((e) => setError(String(e)))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const sheets = Array.from(new Set(products.map((p) => p.sheet)));
+
+  const toggleSheet = useCallback((sheet: string) => {
+    setActiveSheets((prev) => {
+      const next = new Set(prev);
+      if (next.has(sheet)) next.delete(sheet);
+      else next.add(sheet);
+      return next;
+    });
+  }, []);
+
+  const filtered = products.filter((p) => {
+    const matchSearch =
+      !search ||
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.brand_usp.some((u) => u.toLowerCase().includes(search.toLowerCase()));
+    const matchSheet = activeSheets.size === 0 || activeSheets.has(p.sheet);
+    return matchSearch && matchSheet;
+  });
+
+  return (
+    <div style={{ padding: 32, minHeight: "100vh" }}>
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "var(--text-primary)" }}>
+          Product Library
+        </h1>
+        <p style={{ margin: "4px 0 0", color: "var(--text-muted)", fontSize: 13 }}>
+          {loading ? "Loading…" : `${filtered.length} products`}
+        </p>
+      </div>
+
+      {/* Search */}
+      <input
+        type="text"
+        placeholder="Search products or claims…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "10px 16px",
+          borderRadius: 8,
+          border: "1px solid var(--border)",
+          background: "var(--bg-elevated)",
+          color: "var(--text-primary)",
+          fontSize: 14,
+          marginBottom: 16,
+          outline: "none",
+        }}
+      />
+
+      {/* Sheet filter chips */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
+        {sheets.map((sheet) => {
+          const isActive = activeSheets.has(sheet);
+          return (
+            <button
+              key={sheet}
+              onClick={() => toggleSheet(sheet)}
+              style={{
+                padding: "5px 14px",
+                borderRadius: 999,
+                border: `1px solid ${isActive ? "var(--accent-teal)" : "var(--border)"}`,
+                background: isActive ? "rgba(6,170,144,0.15)" : "transparent",
+                color: isActive ? "var(--accent-teal)" : "var(--text-muted)",
+                fontSize: 12,
+                fontWeight: isActive ? 600 : 400,
+                cursor: "pointer",
+                transition: "all 0.15s",
+              }}
+            >
+              {sheet}
+            </button>
+          );
+        })}
+        {activeSheets.size > 0 && (
+          <button
+            onClick={() => setActiveSheets(new Set())}
+            style={{
+              padding: "5px 14px", borderRadius: 999,
+              border: "1px solid var(--border)", background: "transparent",
+              color: "var(--text-muted)", fontSize: 12, cursor: "pointer",
+            }}
+          >
+            Clear filters
+          </button>
+        )}
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div style={{ background: "rgba(232,64,64,0.1)", border: "1px solid rgba(232,64,64,0.3)", borderRadius: 8, padding: 16, color: "var(--accent-red)", marginBottom: 24 }}>
+          Error: {error}
+        </div>
+      )}
+
+      {/* Loading skeleton */}
+      {loading && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
+          {Array.from({ length: 9 }).map((_, i) => (
+            <div key={i} style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 12, padding: 24, height: 140 }}>
+              <div style={{ background: "var(--bg-elevated)", borderRadius: 6, height: 16, width: "70%", marginBottom: 12, animation: "pulse 1.5s infinite" }} />
+              <div style={{ background: "var(--bg-elevated)", borderRadius: 6, height: 12, width: "50%", marginBottom: 8 }} />
+              <div style={{ background: "var(--bg-elevated)", borderRadius: 6, height: 12, width: "40%" }} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Grid */}
+      {!loading && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+          {filtered.map((product) => (
+            <ProductCard
+              key={product.id}
+              product={product}
+              onClick={() => setSelectedProduct(product)}
+            />
+          ))}
+          {filtered.length === 0 && (
+            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 48, color: "var(--text-muted)" }}>
+              No products found.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Drawer */}
+      {selectedProduct && (
+        <ProductDrawer product={selectedProduct} onClose={() => setSelectedProduct(null)} />
+      )}
+    </div>
+  );
+}
