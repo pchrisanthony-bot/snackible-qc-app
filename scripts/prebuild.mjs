@@ -273,20 +273,41 @@ function parsePackSizesFromNutritionText(text) {
   return [...sizes].sort((a, b) => a - b);
 }
 
+// Sheets with a Serving Size column between Nutritional info and RDA
+const HAS_SERVING_SIZE = new Set(["Launched products", "New launches", "First Club", "Nuts"]);
+
 function parseSheetRow(values, sheetName, unpivotedMap) {
   const productName = String(values[0] ?? "").trim().replace(/\s+/g, " ");
-  if (!productName || productName.toLowerCase() === "products") return null;
+  if (!productName || productName.toLowerCase() === "products" ||
+      productName.toLowerCase() === "product name") return null;
 
-  const brandUSP       = String(values[1]  ?? "");
-  const ingredientsRaw = String(values[2]  ?? "");
-  const nutritionText  = String(values[3]  ?? "");
-  const servingSizeRaw = String(values[4]  ?? "");
-  const allergenInfo   = String(values[6]  ?? "");
-  const shelfLife      = String(values[8]  ?? "");
-  const smallPackRaw   = String(values[10] ?? "");
-  const largePackRaw   = String(values[11] ?? "");
-  const manufacturing  = String(values[13] ?? "");
-  const mrpRaw         = String(values[14] ?? "");
+  const brandUSP       = String(values[1] ?? "");
+  const ingredientsRaw = String(values[2] ?? "");
+  const nutritionText  = String(values[3] ?? "");
+
+  let servingSizeRaw, allergenInfo, shelfLife, smallPackRaw, largePackRaw, manufacturing, mrpRaw;
+
+  if (HAS_SERVING_SIZE.has(sheetName)) {
+    // col 4 = Serving Size, col 5 = RDA, col 6 = Allergen, col 8 = Shelf Life
+    // col 10 = Small packet, col 11 = Large packet, col 13 = Manufacturing, col 14 = MRP
+    servingSizeRaw = String(values[4]  ?? "");
+    allergenInfo   = String(values[6]  ?? "");
+    shelfLife      = String(values[8]  ?? "");
+    smallPackRaw   = String(values[10] ?? "");
+    largePackRaw   = String(values[11] ?? "");
+    manufacturing  = String(values[13] ?? "");
+    mrpRaw         = String(values[14] ?? "");
+  } else {
+    // No Serving Size column: col 4 = RDA, col 5 = Allergen, col 7 = Shelf Life
+    // col 9 = Small packet, col 10 = Large packet, col 12 = Manufacturing, col 13 = MRP
+    servingSizeRaw = "";
+    allergenInfo   = String(values[5]  ?? "");
+    shelfLife      = String(values[7]  ?? "");
+    smallPackRaw   = String(values[9]  ?? "");
+    largePackRaw   = String(values[10] ?? "");
+    manufacturing  = String(values[12] ?? "");
+    mrpRaw         = String(values[13] ?? "");
+  }
 
   const claims = parseClaimsFromUSP(brandUSP);
   const ingredientsList = ingredientsRaw
@@ -353,12 +374,20 @@ function parseSheetRow(values, sheetName, unpivotedMap) {
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-const SHEETS = ["Sheet1"];
+const SHEETS = [
+  "Launched products",
+  "New launches",
+  "First Club",
+  "Spreads",
+  "Diwali products 2025",
+  "Nuts",
+];
 
 const sheetPath = path.join(ROOT, "data", "products.xlsx");
 const workbook = XLSX.readFile(sheetPath);
 
-const unpivotedWs = workbook.Sheets["Unpivoted Nutrition Data (2)"];
+// Check for optional unpivoted nutrition tab
+const unpivotedWs = workbook.Sheets["Unpivoted Nutrition Data (2)"] || workbook.Sheets["Unpivoted Nutrition Data"];
 let unpivotedMap;
 if (unpivotedWs) {
   const rows = XLSX.utils.sheet_to_json(unpivotedWs, { header: 1, defval: "", raw: true });
