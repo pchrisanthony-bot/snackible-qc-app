@@ -293,13 +293,16 @@ function Step2({
     (a) => !declaredAllergens.some((d) => d.includes(a.toLowerCase().split(" ")[0]))
   );
 
-  // Determine if any CRITICAL issues
+  // Determine if any CRITICAL issues (apply same scale factor as comparison table)
+  const _labelG = result?.serving_size_g;
+  const _scaleFactor = _labelG && Math.abs(_labelG - grammage) > 1 ? grammage / _labelG : 1;
   const hasCritical =
     allergenIssues.length > 0 ||
     (result && masterBlock &&
       NUTRIENT_ROWS.some(({ masterKey, ocrKey, absFloor }) => {
         const masterVal = (masterBlock[masterKey] as number | null) ?? 0;
-        const ocrVal = (result.nutrition_table?.[ocrKey] as number | null) ?? 0;
+        const rawOcr = (result.nutrition_table?.[ocrKey] as number | null) ?? 0;
+        const ocrVal = parseFloat((rawOcr * _scaleFactor).toFixed(2));
         return calcStatus(masterVal, ocrVal, absFloor) === "CRITICAL";
       }));
 
@@ -442,27 +445,44 @@ function Step2({
             </div>
           )}
 
-          {result && masterBlock && (
+          {result && masterBlock && (() => {
+            // Scale OCR values to the selected grammage if label has different serving size
+            const labelG = result.serving_size_g;
+            const scaleFactor = labelG && Math.abs(labelG - grammage) > 1 ? grammage / labelG : 1;
+            const isScaled = scaleFactor !== 1;
+
+            function scaledOcrVal(ocrKey: string): number {
+              const raw = (result!.nutrition_table?.[ocrKey] as number | null) ?? 0;
+              return isScaled ? parseFloat((raw * scaleFactor).toFixed(2)) : raw;
+            }
+
+            return (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {/* Serving size mismatch banner */}
-              {result.serving_size_g && Math.abs(result.serving_size_g - grammage) > 1 && (
+              {isScaled && (
                 <div style={{
-                  background: "rgba(255,192,0,0.1)", border: "1px solid rgba(255,192,0,0.3)",
+                  background: "rgba(255,192,0,0.08)", border: "1px solid rgba(255,192,0,0.3)",
                   borderRadius: 8, padding: "10px 14px", color: "var(--accent-amber)", fontSize: 13,
                 }}>
-                  ⚠ Serving size mismatch: label says {result.serving_size_g}g, selected grammage is {grammage}g
+                  <div style={{ fontWeight: 600, marginBottom: 3 }}>
+                    Label shows values for {labelG}g — scaled to {grammage}g for comparison
+                  </div>
+                  <div style={{ fontSize: 12, opacity: 0.85 }}>
+                    OCR values have been multiplied by {grammage}/{labelG} ({scaleFactor.toFixed(4)}×).
+                    Deviations reflect actual data accuracy, not pack size difference.
+                  </div>
                 </div>
               )}
 
               {/* Comparison table */}
               <div>
                 <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  Nutrient Comparison (vs {grammage}g master)
+                  Nutrient Comparison (vs {grammage}g master{isScaled ? ` — OCR scaled from ${labelG}g` : ""})
                 </div>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: "var(--bg-elevated)" }}>
-                      {["Nutrient", "Master", "Label (OCR)", "Dev%", "Status"].map((h) => (
+                      {["Nutrient", "Master", isScaled ? `Label ×${scaleFactor.toFixed(3)}` : "Label (OCR)", "Dev%", "Status"].map((h) => (
                         <th key={h} style={{ padding: "7px 8px", textAlign: h === "Nutrient" ? "left" : "right", color: "var(--text-muted)", fontWeight: 600, borderBottom: "1px solid var(--border)", fontSize: 11 }}>
                           {h}
                         </th>
@@ -472,7 +492,7 @@ function Step2({
                   <tbody>
                     {NUTRIENT_ROWS.map(({ label, masterKey, ocrKey, unit, absFloor }) => {
                       const masterVal = (masterBlock[masterKey] as number | null) ?? 0;
-                      const ocrVal = (result.nutrition_table?.[ocrKey] as number | null) ?? 0;
+                      const ocrVal = scaledOcrVal(ocrKey);
                       const absDiff = Math.abs(masterVal - ocrVal);
                       const devPct = masterVal !== 0 ? ((absDiff / Math.abs(masterVal)) * 100).toFixed(1) : "—";
                       const status = calcStatus(masterVal, ocrVal, absFloor);
@@ -486,7 +506,7 @@ function Step2({
                             {ocrVal}{unit}
                           </td>
                           <td style={{ padding: "6px 8px", textAlign: "right", color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>
-                            {typeof devPct === "string" && devPct !== "—" ? `${devPct}%` : devPct}
+                            {devPct !== "—" ? `${devPct}%` : devPct}
                           </td>
                           <td style={{ padding: "6px 8px", textAlign: "right" }}>
                             <StatusChip status={status} />
@@ -570,7 +590,8 @@ function Step2({
                 </div>
               )}
             </div>
-          )}
+          );
+          })()}
         </div>
       </div>
     </div>
