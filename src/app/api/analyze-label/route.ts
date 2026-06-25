@@ -37,6 +37,18 @@ Return this exact JSON structure:
     "sodium_mg": number or null,
     "calcium_mg": number or null
   },
+  "rda_table": {
+    "energy_pct": number or null,
+    "protein_pct": number or null,
+    "carbohydrate_pct": number or null,
+    "total_fat_pct": number or null,
+    "saturated_fat_pct": number or null,
+    "trans_fat_pct": number or null,
+    "added_sugar_pct": number or null,
+    "dietary_fibre_pct": number or null,
+    "sodium_pct": number or null,
+    "calcium_pct": number or null
+  },
   "serving_size_g": number,
   "barcode": string or null,
   "allergens_declared": string[],
@@ -49,6 +61,7 @@ Return this exact JSON structure:
 Rules:
 - nutrition_table values should be per the serving size on the label (usually per 100g, but check)
 - serving_size_g is the grammage the nutrition table is per
+- rda_table: extract the % RDA (% Daily Value / % Recommended Dietary Allowance) column from the nutrition table; use null if a nutrient has no RDA column
 - allergens_declared: list each allergen explicitly declared (e.g. ["wheat", "milk", "soya"])
 - claims_on_pack: all marketing/nutritional claims found (e.g. ["High Protein", "No Palm Oil"])
 - For missing/not found fields use null
