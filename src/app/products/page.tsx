@@ -273,21 +273,45 @@ function ProductDrawer({ product, onClose }: { product: Product; onClose: () => 
                           {label} %RDA
                         </td>
                         {product.nutrition.map((nb) => {
-                          const rdaBlock = product.rda.find(
+                          // Exact match first
+                          const exactBlock = product.rda.find(
                             (r) => Math.abs(r.grammage - nb.grammage) < 0.5
                           );
-                          const pct = rdaBlock ? (rdaBlock[rdaKey] as number | null) : null;
+                          let pct: number | null = exactBlock
+                            ? (exactBlock[rdaKey] as number | null)
+                            : null;
+                          let isCalculated = false;
+
+                          // No exact match — scale from nearest grammage that has a value
+                          if (pct === null) {
+                            const source = product.rda
+                              .filter((r) => (r[rdaKey] as number | null) !== null)
+                              .reduce<RDABlock | undefined>((best, rb) => {
+                                if (!best) return rb;
+                                return Math.abs(rb.grammage - nb.grammage) < Math.abs(best.grammage - nb.grammage) ? rb : best;
+                              }, undefined);
+                            if (source) {
+                              const srcPct = source[rdaKey] as number | null;
+                              if (srcPct !== null && source.grammage > 0) {
+                                pct = parseFloat((srcPct * (nb.grammage / source.grammage)).toFixed(1));
+                                isCalculated = true;
+                              }
+                            }
+                          }
+
                           return (
                             <td
                               key={nb.grammage}
                               style={{
                                 padding: "6px 10px", textAlign: "right",
-                                color: "var(--text-secondary)", fontSize: 11,
+                                color: isCalculated ? "var(--text-muted)" : "var(--text-secondary)",
+                                fontSize: 11,
                                 fontVariantNumeric: "tabular-nums",
                                 borderBottom: "1px solid var(--border)",
                               }}
+                              title={isCalculated ? `Calculated from ${product.rda.find(r => (r[rdaKey] as number | null) !== null)?.grammage}g RDA data` : undefined}
                             >
-                              {pct !== null && pct !== undefined ? `${pct}%` : "—"}
+                              {pct !== null ? `${pct}%${isCalculated ? "*" : ""}` : "—"}
                             </td>
                           );
                         })}
