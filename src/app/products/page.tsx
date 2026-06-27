@@ -250,11 +250,19 @@ function ProductDrawer({ product, onClose }: { product: Product; onClose: () => 
                       })}
                     </tr>
                   ))}
-                  {/* RDA % row */}
+                  {/* RDA % section header + grammage sub-header */}
                   <tr>
-                    <td colSpan={product.nutrition.length + 1} style={{ padding: "8px 10px", color: "var(--text-muted)", fontSize: 10, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+                    <td colSpan={product.nutrition.length + 1} style={{ padding: "8px 10px", color: "var(--text-muted)", fontSize: 10, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", background: "var(--bg-elevated)" }}>
                       % RDA
                     </td>
+                  </tr>
+                  <tr style={{ background: "var(--bg-elevated)" }}>
+                    <td style={{ padding: "4px 10px", color: "var(--text-muted)", fontSize: 10 }} />
+                    {product.nutrition.map((nb) => (
+                      <td key={nb.grammage} style={{ padding: "4px 10px", textAlign: "right", color: "var(--text-muted)", fontSize: 10, fontWeight: 600, borderBottom: "1px solid var(--border)" }}>
+                        {nb.grammage}g
+                      </td>
+                    ))}
                   </tr>
                   {NUTRIENT_ROWS.map(({ label, key }) => {
                     const rdaKey = RDA_KEY_MAP[key];
