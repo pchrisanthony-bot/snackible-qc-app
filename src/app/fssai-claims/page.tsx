@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Product, NutritionBlock, RDABlock } from "../../lib/types";
-import { validateClaims, calcEnergy, ClaimResult, SODIUM_THRESHOLD } from "../../lib/fssai";
+import { validateClaims, calcEnergy, ClaimResult, SODIUM_THRESHOLD, CLAIM_RULES } from "../../lib/fssai";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -324,14 +324,30 @@ export default function FSSAIClaimsPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                     <thead>
                       <tr>
-                        {["Claim", "Type", "Threshold", `Actual (100g)${usingOCR ? " — OCR" : ""}`, "Status"].map((h) => (
+                        {["Claim", "Type", "Threshold", "Actual (Master)", `Serving${labelOCR?.serving_size_g ? ` (${labelOCR.serving_size_g}g)` : ""}`, "Calculated per 100g", "Status"].map((h) => (
                           <th key={h} style={thCell}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {activeClaimResults.map((r, i) => {
-                        const masterActual = masterClaimResults[i]?.actual;
+                        const ruleKey = Object.keys(CLAIM_RULES).find(k =>
+                          k.toLowerCase() === r.claim.toLowerCase() ||
+                          r.claim.toLowerCase().includes(k.toLowerCase()) ||
+                          k.toLowerCase().includes(r.claim.toLowerCase())
+                        );
+                        const rule = ruleKey ? CLAIM_RULES[ruleKey] : undefined;
+                        const unit = rule ? (rule.nutrient.endsWith("_mg") ? " mg" : rule.nutrient === "energy_kcal" ? " kcal" : "g") : "";
+
+                        const masterActual = masterClaimResults[i]?.actual || "—";
+
+                        const servingRaw = rule && labelOCR
+                          ? (labelOCR.nutrition_table[rule.nutrient as string] as number | null) ?? null
+                          : null;
+                        const servingStr = servingRaw !== null ? `${servingRaw}${unit}` : "—";
+
+                        const calc100Str = rule && ocrClaimResults ? (ocrClaimResults[i]?.actual || "—") : "—";
+
                         return (
                           <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
                             <td style={{ padding: "8px 8px", color: "var(--text-primary)", fontWeight: 500 }}>{r.claim}</td>
@@ -339,13 +355,14 @@ export default function FSSAIClaimsPage() {
                             <td style={{ padding: "8px 8px", color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>
                               {r.threshold || (r.type === "factual" ? "Factual claim — verified by ingredients" : "Custom — manual review required")}
                             </td>
-                            <td style={{ padding: "8px 8px", fontVariantNumeric: "tabular-nums" }}>
-                              <span style={{ color: "var(--text-primary)" }}>{r.actual || "—"}</span>
-                              {usingOCR && masterActual && masterActual !== r.actual && (
-                                <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
-                                  master: {masterActual}
-                                </div>
-                              )}
+                            <td style={{ padding: "8px 8px", color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>
+                              {masterActual}
+                            </td>
+                            <td style={{ padding: "8px 8px", color: labelOCR ? "var(--text-primary)" : "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                              {servingStr}
+                            </td>
+                            <td style={{ padding: "8px 8px", color: labelOCR ? "var(--text-primary)" : "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                              {calc100Str}
                             </td>
                             <td style={{ padding: "8px 8px" }}>
                               <StatusChip status={r.status === "pass" ? "pass" : r.status === "fail" ? "fail" : r.status === "factual" ? "factual" : "custom"} />
