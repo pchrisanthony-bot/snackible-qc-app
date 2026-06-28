@@ -429,7 +429,6 @@ function Step2({ product, grammage, onBack }: { product: Product; grammage: numb
                       </th>
                       <th style={{ ...thCell, textAlign: "right" }}>%RDA</th>
                       <th style={{ ...thCell, textAlign: "right" }}>Deviation</th>
-                      <th style={{ ...thCell, textAlign: "right" }}>Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -460,9 +459,6 @@ function Step2({ product, grammage, onBack }: { product: Product; grammage: numb
                           </td>
                           <td style={{ padding: "8px 12px", textAlign: "right", color: devColor, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
                             {devFormatted}
-                          </td>
-                          <td style={{ padding: "8px 12px", textAlign: "right" }}>
-                            <StatusChip status={status} />
                           </td>
                         </tr>
                       );
