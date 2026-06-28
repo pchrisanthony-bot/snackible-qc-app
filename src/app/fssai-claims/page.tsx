@@ -315,17 +315,30 @@ export default function FSSAIClaimsPage() {
           </div>
 
           {/* Overall status banner */}
-          <div style={{
-            borderRadius: 10, padding: "14px 20px", marginBottom: 28,
-            background: overallStatus === "NON_COMPLIANT" ? "rgba(232,64,64,0.1)" : overallStatus === "REVIEW_REQUIRED" ? "rgba(255,192,0,0.1)" : "rgba(6,170,144,0.1)",
-            border: `1px solid ${overallStatus === "NON_COMPLIANT" ? "rgba(232,64,64,0.3)" : overallStatus === "REVIEW_REQUIRED" ? "rgba(255,192,0,0.3)" : "rgba(6,170,144,0.3)"}`,
-            color: overallStatus === "NON_COMPLIANT" ? "var(--accent-red)" : overallStatus === "REVIEW_REQUIRED" ? "var(--accent-amber)" : "var(--accent-teal)",
-            fontWeight: 700, fontSize: 15,
-          }}>
-            {overallStatus === "NON_COMPLIANT"   && "✗ NON-COMPLIANT — One or more claims fail FSSAI thresholds"}
-            {overallStatus === "REVIEW_REQUIRED" && "⚠ REVIEW REQUIRED — Energy deviation or sodium flag detected"}
-            {overallStatus === "COMPLIANT"       && "✓ COMPLIANT — All claims validated, no flags raised"}
-          </div>
+          {!usingOCR ? (
+            <div style={{
+              borderRadius: 10, padding: "14px 20px", marginBottom: 28,
+              background: "rgba(155,191,190,0.08)",
+              border: "1px solid rgba(155,191,190,0.25)",
+              color: "var(--text-secondary)",
+              fontWeight: 500, fontSize: 14,
+            }}>
+              <span style={{ fontWeight: 700, color: "var(--text-primary)" }}>Master sheet reference.</span>{" "}
+              The checks below show what the sheet&apos;s data supports. Upload a printed label to validate it against FSSAI thresholds.
+            </div>
+          ) : (
+            <div style={{
+              borderRadius: 10, padding: "14px 20px", marginBottom: 28,
+              background: overallStatus === "NON_COMPLIANT" ? "rgba(232,64,64,0.1)" : overallStatus === "REVIEW_REQUIRED" ? "rgba(255,192,0,0.1)" : "rgba(6,170,144,0.1)",
+              border: `1px solid ${overallStatus === "NON_COMPLIANT" ? "rgba(232,64,64,0.3)" : overallStatus === "REVIEW_REQUIRED" ? "rgba(255,192,0,0.3)" : "rgba(6,170,144,0.3)"}`,
+              color: overallStatus === "NON_COMPLIANT" ? "var(--accent-red)" : overallStatus === "REVIEW_REQUIRED" ? "var(--accent-amber)" : "var(--accent-teal)",
+              fontWeight: 700, fontSize: 15,
+            }}>
+              {overallStatus === "NON_COMPLIANT"   && "✗ NON-COMPLIANT — One or more claims fail FSSAI thresholds on the uploaded label"}
+              {overallStatus === "REVIEW_REQUIRED" && "⚠ REVIEW REQUIRED — Energy deviation or sodium flag detected"}
+              {overallStatus === "COMPLIANT"       && "✓ COMPLIANT — All claims validated against the uploaded label, no flags raised"}
+            </div>
+          )}
 
           {/* Main content grid — label preview panel when file is loaded */}
           <div style={{ display: "grid", gridTemplateColumns: hasLabel ? "1fr 300px" : "1fr", gap: 28, alignItems: "start" }}>
