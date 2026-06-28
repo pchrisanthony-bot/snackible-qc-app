@@ -93,6 +93,7 @@ export default function FSSAIClaimsPage() {
   // Label upload state
   const [labelFile, setLabelFile] = useState<File | null>(null);
   const [labelPreview, setLabelPreview] = useState<string | null>(null);
+  const [labelPdfUrl, setLabelPdfUrl] = useState<string | null>(null);
   const [labelOCR, setLabelOCR] = useState<LabelOCR | null>(null);
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrError, setOcrError] = useState<string | null>(null);
@@ -104,6 +105,11 @@ export default function FSSAIClaimsPage() {
       .then((data) => { if (Array.isArray(data)) setProducts(data); })
       .finally(() => setLoading(false));
   }, []);
+
+  // Revoke PDF object URL when it changes to avoid memory leaks
+  useEffect(() => {
+    return () => { if (labelPdfUrl) URL.revokeObjectURL(labelPdfUrl); };
+  }, [labelPdfUrl]);
 
   const filtered = products.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
@@ -117,8 +123,13 @@ export default function FSSAIClaimsPage() {
       const reader = new FileReader();
       reader.onload = (e) => setLabelPreview(e.target?.result as string);
       reader.readAsDataURL(f);
+      setLabelPdfUrl(null);
+    } else if (f.type === "application/pdf") {
+      setLabelPreview(null);
+      setLabelPdfUrl(URL.createObjectURL(f));
     } else {
       setLabelPreview(null);
+      setLabelPdfUrl(null);
     }
   }, []);
 
@@ -143,6 +154,7 @@ export default function FSSAIClaimsPage() {
   const clearLabel = () => {
     setLabelFile(null);
     setLabelPreview(null);
+    setLabelPdfUrl(null);
     setLabelOCR(null);
     setOcrError(null);
   };
@@ -447,12 +459,18 @@ export default function FSSAIClaimsPage() {
                   <div style={{ padding: "8px 14px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid var(--border)" }}>
                     Label Preview
                   </div>
-                  <div style={{ padding: 16, background: "var(--bg-base)", display: "flex", justifyContent: "center", minHeight: 180 }}>
+                  <div style={{ background: "var(--bg-base)", display: "flex", justifyContent: "center", minHeight: 180 }}>
                     {labelPreview ? (
                       <img
                         src={labelPreview}
                         alt="Label"
-                        style={{ maxWidth: "100%", maxHeight: 420, objectFit: "contain", borderRadius: 6 }}
+                        style={{ maxWidth: "100%", maxHeight: 480, objectFit: "contain" }}
+                      />
+                    ) : labelPdfUrl ? (
+                      <embed
+                        src={labelPdfUrl}
+                        type="application/pdf"
+                        style={{ width: "100%", height: 480, border: "none" }}
                       />
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "24px 0" }}>

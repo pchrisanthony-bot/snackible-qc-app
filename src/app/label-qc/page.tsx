@@ -200,10 +200,15 @@ function Step1({ products, onProceed }: { products: Product[]; onProceed: (p: Pr
 function Step2({ product, grammage, onBack }: { product: Product; grammage: number; onBack: () => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<OCRResult | null>(null);
   const [ocrError, setOcrError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => { if (pdfUrl) URL.revokeObjectURL(pdfUrl); };
+  }, [pdfUrl]);
 
   const masterBlock = product.nutrition.find((nb) => nb.grammage === grammage);
   const rdaBlock    = product.rda.find((rb) => rb.grammage === grammage);
@@ -216,8 +221,13 @@ function Step2({ product, grammage, onBack }: { product: Product; grammage: numb
       const reader = new FileReader();
       reader.onload = (e) => setPreview(e.target?.result as string);
       reader.readAsDataURL(f);
+      setPdfUrl(null);
+    } else if (f.type === "application/pdf") {
+      setPreview(null);
+      setPdfUrl(URL.createObjectURL(f));
     } else {
       setPreview(null);
+      setPdfUrl(null);
     }
   }, []);
 
@@ -325,7 +335,7 @@ function Step2({ product, grammage, onBack }: { product: Product; grammage: numb
             <span style={{ flex: 1, color: "var(--text-primary)", fontSize: 13, fontWeight: 500 }}>{file.name}</span>
             <span style={{ fontSize: 11, color: "var(--accent-teal)", fontWeight: 600 }}>✓ Analyzed</span>
             <button
-              onClick={() => { setFile(null); setPreview(null); setResult(null); setOcrError(null); }}
+              onClick={() => { setFile(null); setPreview(null); setPdfUrl(null); setResult(null); setOcrError(null); }}
               style={{ padding: "7px 14px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}
             >
               Re-upload
@@ -355,7 +365,7 @@ function Step2({ product, grammage, onBack }: { product: Product; grammage: numb
               <span style={{ fontSize: 16 }}>{preview ? "🖼️" : "📄"}</span>
               <span style={{ flex: 1, color: "var(--text-primary)", fontSize: 13, fontWeight: 500 }}>{file.name}</span>
               <button
-                onClick={() => { setFile(null); setPreview(null); setResult(null); setOcrError(null); }}
+                onClick={() => { setFile(null); setPreview(null); setPdfUrl(null); setResult(null); setOcrError(null); }}
                 style={{ padding: "7px 14px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}
               >
                 Re-upload
@@ -392,7 +402,7 @@ function Step2({ product, grammage, onBack }: { product: Product; grammage: numb
 
       {/* ── QC RESULTS ── */}
       {result && masterBlock && (
-        <div style={{ display: "grid", gridTemplateColumns: preview ? "1fr 300px" : "1fr", gap: 28, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: (preview || pdfUrl) ? "1fr 340px" : "1fr", gap: 28, alignItems: "start" }}>
 
           {/* ── LEFT: all QC content ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
@@ -537,19 +547,27 @@ function Step2({ product, grammage, onBack }: { product: Product; grammage: numb
             )}
           </div>
 
-          {/* ── RIGHT: sticky label preview (image files only) ── */}
-          {preview && (
+          {/* ── RIGHT: sticky label preview (image or PDF) ── */}
+          {(preview || pdfUrl) && (
             <div style={{ position: "sticky", top: 24 }}>
               <div style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
                 <div style={{ padding: "8px 14px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid var(--border)" }}>
                   Label Preview
                 </div>
-                <div style={{ padding: 12, background: "var(--bg-base)", display: "flex", justifyContent: "center" }}>
-                  <img
-                    src={preview}
-                    alt="Label"
-                    style={{ maxWidth: "100%", maxHeight: 500, objectFit: "contain", borderRadius: 6 }}
-                  />
+                <div style={{ background: "var(--bg-base)" }}>
+                  {preview ? (
+                    <img
+                      src={preview}
+                      alt="Label"
+                      style={{ maxWidth: "100%", maxHeight: 520, objectFit: "contain", display: "block" }}
+                    />
+                  ) : (
+                    <embed
+                      src={pdfUrl!}
+                      type="application/pdf"
+                      style={{ width: "100%", height: 520, border: "none", display: "block" }}
+                    />
+                  )}
                 </div>
                 {hasServingSizeDiff && (
                   <div style={{ padding: "8px 14px", fontSize: 11, color: "var(--accent-teal)", borderTop: "1px solid var(--border)" }}>
