@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Product, NutritionBlock, RDABlock } from "../../lib/types";
-import { validateClaims, calcEnergy, ClaimResult, SODIUM_THRESHOLD, CLAIM_RULES, checkOilSatFat } from "../../lib/fssai";
+import { validateClaims, calcEnergy, ClaimResult, SODIUM_THRESHOLD, CLAIM_RULES, detectPrimaryOil, calcSatFatPct } from "../../lib/fssai";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -180,8 +180,11 @@ export default function FSSAIClaimsPage() {
   const sodiumStatus     = sodiumVal !== null && sodiumVal > SODIUM_THRESHOLD ? "warning" : "pass";
 
   // ── Oil-based saturated-fat check (primary oil only) ──
-  const oilCheck   = selected && n100 ? checkOilSatFat(selected.ingredients, n100) : null;
-  const anyOilFail = oilCheck?.status === "fail";
+  const primaryOil   = selected ? detectPrimaryOil(selected.ingredients) : null;
+  const masterSatPct = n100 ? calcSatFatPct(n100) : null;
+  const labelSatPct  = ocrBlock ? calcSatFatPct(ocrBlock) : null;
+  // Only treat as compliance fail when a label is actually uploaded and exceeds the limit
+  const anyOilFail   = !!(primaryOil && labelSatPct !== null && labelSatPct > primaryOil.maxPct);
 
   // ── Per-serving values ──
   // Prefer the uploaded label's serving size when available; fall back to master sheet
@@ -472,7 +475,7 @@ export default function FSSAIClaimsPage() {
               </div>
 
               {/* ── Oil-based saturated fat check (primary oil only) ── */}
-              {oilCheck && (
+              {primaryOil && (
                 <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 10, padding: 18 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                     Oil-Based Saturated Fat Check
@@ -483,28 +486,36 @@ export default function FSSAIClaimsPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                        <th style={{ padding: "6px 0", textAlign: "left", color: "var(--text-muted)", fontWeight: 600, fontSize: 11 }}>Primary Oil</th>
+                        <th style={{ padding: "6px 0", textAlign: "left",  color: "var(--text-muted)", fontWeight: 600, fontSize: 11 }}>Primary Oil</th>
                         <th style={{ padding: "6px 0", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: 11 }}>Limit</th>
-                        <th style={{ padding: "6px 0", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: 11 }}>Actual (Sat / Total)</th>
-                        <th style={{ padding: "6px 0", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: 11 }}>Status</th>
+                        <th style={{ padding: "6px 0", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: 11 }}>Master Sheet</th>
+                        <th style={{ padding: "6px 0", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: 11 }}>Actual Label</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr>
-                        <td style={{ padding: "8px 0", color: "var(--text-primary)", fontWeight: 600 }}>{oilCheck.primaryOil}</td>
-                        <td style={{ padding: "8px 0", textAlign: "right", color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>≤ {oilCheck.maxPct}%</td>
-                        <td style={{ padding: "8px 0", textAlign: "right", color: oilCheck.status === "fail" ? "var(--accent-red)" : "var(--text-primary)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-                          {oilCheck.actualPct !== null ? `${oilCheck.actualPct}%` : "—"}
+                        <td style={{ padding: "8px 0", color: "var(--text-primary)", fontWeight: 600 }}>{primaryOil.name}</td>
+                        <td style={{ padding: "8px 0", textAlign: "right", color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>
+                          ≤ {primaryOil.maxPct}%
                         </td>
-                        <td style={{ padding: "8px 0", textAlign: "right" }}>
-                          <StatusChip status={oilCheck.status === "pass" ? "pass" : oilCheck.status === "fail" ? "fail" : "neutral"} label={oilCheck.status === "no_data" ? "NO DATA" : undefined} />
+                        <td style={{
+                          padding: "8px 0", textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums",
+                          color: masterSatPct === null ? "var(--text-muted)" : masterSatPct > primaryOil.maxPct ? "var(--accent-red)" : "var(--accent-teal)",
+                        }}>
+                          {masterSatPct !== null ? `${masterSatPct}%` : "—"}
+                        </td>
+                        <td style={{
+                          padding: "8px 0", textAlign: "right", fontWeight: 600, fontVariantNumeric: "tabular-nums",
+                          color: labelSatPct === null ? "var(--text-muted)" : labelSatPct > primaryOil.maxPct ? "var(--accent-red)" : "var(--accent-teal)",
+                        }}>
+                          {labelSatPct !== null ? `${labelSatPct}%` : "—"}
                         </td>
                       </tr>
                     </tbody>
                   </table>
-                  {oilCheck.otherOils.length > 0 && (
+                  {primaryOil.otherOils.length > 0 && (
                     <div style={{ marginTop: 10, fontSize: 11, color: "var(--text-muted)" }}>
-                      Also detected (not validated — assumed trace): {oilCheck.otherOils.join(", ")}
+                      Also detected (not validated — assumed trace): {primaryOil.otherOils.join(", ")}
                     </div>
                   )}
                 </div>

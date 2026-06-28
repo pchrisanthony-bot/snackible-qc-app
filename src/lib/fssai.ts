@@ -76,16 +76,13 @@ export const OIL_SAT_FAT_RULES: { name: string; pattern: RegExp; maxPct: number 
   { name: "Sunflower Oil", pattern: /sunflower\s*oil/i,   maxPct: 15 },
 ];
 
-export type OilSatFatCheck = {
-  primaryOil: string;
+export type PrimaryOilInfo = {
+  name: string;
   maxPct: number;
-  actualPct: number | null;
-  status: "pass" | "fail" | "no_data";
-  otherOils: string[];   // other oils detected later in the ingredient list (informational only)
-} | null;
+  otherOils: string[];
+};
 
-export function checkOilSatFat(ingredients: string, n: NutritionBlock): OilSatFatCheck {
-  // Find every rule that matches, with the position of its first occurrence in the ingredient string
+export function detectPrimaryOil(ingredients: string): PrimaryOilInfo | null {
   const hits = OIL_SAT_FAT_RULES
     .map(r => {
       const m = r.pattern.exec(ingredients);
@@ -93,23 +90,17 @@ export function checkOilSatFat(ingredients: string, n: NutritionBlock): OilSatFa
     })
     .filter((x): x is { rule: typeof OIL_SAT_FAT_RULES[number]; index: number } => x !== null)
     .sort((a, b) => a.index - b.index);
-
   if (hits.length === 0) return null;
+  return {
+    name:      hits[0].rule.name,
+    maxPct:    hits[0].rule.maxPct,
+    otherOils: hits.slice(1).map(h => h.rule.name),
+  };
+}
 
-  const primary = hits[0].rule;
-  const others  = hits.slice(1).map(h => h.rule.name);
-
+export function calcSatFatPct(n: NutritionBlock): number | null {
   const total = n.total_fat_g;
   const sat   = n.saturated_fat_g;
-  if (sat === null || total === 0 || total === null) {
-    return { primaryOil: primary.name, maxPct: primary.maxPct, actualPct: null, status: "no_data", otherOils: others };
-  }
-  const pct = (sat / total) * 100;
-  return {
-    primaryOil: primary.name,
-    maxPct: primary.maxPct,
-    actualPct: parseFloat(pct.toFixed(1)),
-    status: pct <= primary.maxPct ? "pass" : "fail",
-    otherOils: others,
-  };
+  if (sat === null || total === null || total === 0) return null;
+  return parseFloat(((sat / total) * 100).toFixed(1));
 }
