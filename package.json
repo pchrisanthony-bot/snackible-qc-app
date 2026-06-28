@@ -12,9 +12,9 @@
     "@anthropic-ai/sdk": "^0.39.0",
     "lucide-react": "^0.427.0",
     "next": "14.2.5",
+    "pdfjs-dist": "^6.1.200",
     "react": "^18",
     "react-dom": "^18",
-    "react-pdf": "^10.4.1",
     "recharts": "^2.12.7",
     "xlsx": "^0.18.5"
   },
