@@ -29,24 +29,33 @@ const NUTRIENT_ROWS: { label: string; key: keyof NutritionBlock; rdaKey?: keyof 
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function ocrToN100(ocr: Partial<Record<string, number | null>>): NutritionBlock {
-  const g = (k: string) => (ocr[k] as number | null) ?? 0;
-  const n = (k: string) => (ocr[k] as number | null) ?? null;
+function ocrToN100(ocr: Partial<Record<string, number | null>>, servingG: number): NutritionBlock {
+  // Scale OCR values to per-100g if the label declares a different serving size
+  const scale = servingG > 0 && Math.abs(servingG - 100) > 1 ? 100 / servingG : 1;
+  const g = (k: string) => {
+    const v = (ocr[k] as number | null) ?? 0;
+    return parseFloat((v * scale).toFixed(2));
+  };
+  const n = (k: string) => {
+    const v = ocr[k] as number | null;
+    if (v === null || v === undefined) return null;
+    return parseFloat((v * scale).toFixed(2));
+  };
   return {
-    grammage:        100,
-    energy_kcal:     g("energy_kcal"),
-    protein_g:       g("protein_g"),
-    carbohydrate_g:  g("carbohydrate_g"),
-    total_sugar_g:   g("total_sugar_g"),
-    added_sugar_g:   n("added_sugar_g"),
-    dietary_fibre_g: n("dietary_fibre_g"),
-    total_fat_g:     g("total_fat_g"),
-    saturated_fat_g: n("saturated_fat_g"),
+    grammage:          100,
+    energy_kcal:       g("energy_kcal"),
+    protein_g:         g("protein_g"),
+    carbohydrate_g:    g("carbohydrate_g"),
+    total_sugar_g:     g("total_sugar_g"),
+    added_sugar_g:     n("added_sugar_g"),
+    dietary_fibre_g:   n("dietary_fibre_g"),
+    total_fat_g:       g("total_fat_g"),
+    saturated_fat_g:   n("saturated_fat_g"),
     unsaturated_fat_g: null,
-    trans_fat_g:     n("trans_fat_g"),
-    cholesterol_mg:  null,
-    sodium_mg:       n("sodium_mg"),
-    calcium_mg:      n("calcium_mg"),
+    trans_fat_g:       n("trans_fat_g"),
+    cholesterol_mg:    null,
+    sodium_mg:         n("sodium_mg"),
+    calcium_mg:        n("calcium_mg"),
   };
 }
 
@@ -140,7 +149,9 @@ export default function FSSAIClaimsPage() {
 
   // ── Nutrition data ──
   const n100 = selected?.nutrition.find((nb) => Math.abs(nb.grammage - 100) < 1);
-  const ocrBlock: NutritionBlock | null = labelOCR ? ocrToN100(labelOCR.nutrition_table) : null;
+  const ocrBlock: NutritionBlock | null = labelOCR
+    ? ocrToN100(labelOCR.nutrition_table, labelOCR.serving_size_g ?? 100)
+    : null;
 
   // ── Claim validation: active source vs master reference ──
   const masterClaimResults: ClaimResult[] = selected && n100 ? validateClaims(selected.brand_usp, n100) : [];
@@ -435,9 +446,12 @@ export default function FSSAIClaimsPage() {
                   </div>
                   {labelOCR?.serving_size_g && (
                     <div style={{ padding: "8px 14px", fontSize: 11, color: "var(--text-muted)", borderTop: "1px solid var(--border)" }}>
-                      OCR serving size: {labelOCR.serving_size_g}g
-                      {Math.abs(labelOCR.serving_size_g - 100) > 1 && (
-                        <span style={{ color: "var(--accent-amber)", marginLeft: 6 }}>⚠ not per 100g</span>
+                      {Math.abs(labelOCR.serving_size_g - 100) > 1 ? (
+                        <span style={{ color: "var(--accent-teal)" }}>
+                          Label is per {labelOCR.serving_size_g}g — scaled ×{(100 / labelOCR.serving_size_g).toFixed(3)} to per 100g for FSSAI thresholds
+                        </span>
+                      ) : (
+                        <span>OCR serving size: {labelOCR.serving_size_g}g ✓ per 100g</span>
                       )}
                     </div>
                   )}
