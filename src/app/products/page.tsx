@@ -473,23 +473,30 @@ export default function ProductsPage() {
       />
 
       {/* Sheet filter chips */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 24 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 24 }}>
         {sheets.map((sheet) => {
           const isActive = activeSheets.has(sheet);
           return (
             <button
               key={sheet}
               onClick={() => toggleSheet(sheet)}
+              onMouseEnter={(e) => {
+                if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-surface)";
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) (e.currentTarget as HTMLButtonElement).style.background = "var(--bg-elevated)";
+              }}
               style={{
-                padding: "5px 14px",
+                padding: "8px 18px",
                 borderRadius: 999,
                 border: `1px solid ${isActive ? "var(--accent-teal)" : "var(--border)"}`,
-                background: isActive ? "rgba(6,170,144,0.15)" : "transparent",
-                color: isActive ? "var(--accent-teal)" : "var(--text-muted)",
-                fontSize: 12,
-                fontWeight: isActive ? 600 : 400,
+                background: isActive ? "rgba(6,170,144,0.18)" : "var(--bg-elevated)",
+                color: isActive ? "var(--accent-teal)" : "var(--text-primary)",
+                fontSize: 13,
+                fontWeight: isActive ? 700 : 600,
+                letterSpacing: "0.01em",
                 cursor: "pointer",
-                transition: "all 0.15s",
+                transition: "background 0.15s, color 0.15s, border-color 0.15s",
               }}
             >
               {sheet}
@@ -500,9 +507,9 @@ export default function ProductsPage() {
           <button
             onClick={() => setActiveSheets(new Set())}
             style={{
-              padding: "5px 14px", borderRadius: 999,
-              border: "1px solid var(--border)", background: "transparent",
-              color: "var(--text-muted)", fontSize: 12, cursor: "pointer",
+              padding: "8px 18px", borderRadius: 999,
+              border: "1px dashed var(--border)", background: "transparent",
+              color: "var(--text-muted)", fontSize: 13, fontWeight: 500, cursor: "pointer",
             }}
           >
             Clear filters
