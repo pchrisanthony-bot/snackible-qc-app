@@ -53,7 +53,7 @@ export default function LabelPreview({ file, height = 700 }: { file: File; heigh
     (async () => {
       try {
         const pdfjs = await import("pdfjs-dist");
-        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
         const pdf = await pdfjs.getDocument({ url }).promise;
         if (id !== renderRef.current) return;
