@@ -179,14 +179,17 @@ export default function FSSAIClaimsPage() {
   const sodiumVal        = n100?.sodium_mg ?? null;
   const sodiumStatus     = sodiumVal !== null && sodiumVal > SODIUM_THRESHOLD ? "warning" : "pass";
 
-  // ── Per-serving values (master) ──
-  const serving  = selected?.serving_size_g ?? 100;
-  const factor   = serving / 100;
-  const rdaBlock = selected?.rda.reduce<RDABlock | undefined>((best, rb) => {
+  // ── Per-serving values ──
+  // Prefer the uploaded label's serving size when available; fall back to master sheet
+  const serving       = labelOCR?.serving_size_g ?? selected?.serving_size_g ?? 100;
+  const servingSource = labelOCR?.serving_size_g ? "label" : "master";
+  const factor        = serving / 100;
+  const rdaBlock      = selected?.rda.reduce<RDABlock | undefined>((best, rb) => {
     if (!best) return rb;
     return Math.abs(rb.grammage - serving) < Math.abs(best.grammage - serving) ? rb : best;
   }, undefined);
-  const rdaMatch = rdaBlock && Math.abs(rdaBlock.grammage - serving) < 5 ? rdaBlock : undefined;
+  // Linearly scale %RDA from the nearest available grammage to the actual serving size
+  const rdaScale = rdaBlock && rdaBlock.grammage > 0 ? serving / rdaBlock.grammage : 1;
 
   // ── Overall status ──
   const anyClaimFail  = activeClaimResults.some((r) => r.status === "fail");
@@ -514,7 +517,8 @@ export default function FSSAIClaimsPage() {
                 {NUTRIENT_ROWS.map(({ label, key, rdaKey, unit }, idx) => {
                   const val100     = n100[key] as number | null;
                   const valServing = val100 !== null ? val100 * factor : null;
-                  const rdaPct     = rdaKey && rdaMatch ? (rdaMatch[rdaKey] as number | null) : null;
+                  const rdaSrc     = rdaKey && rdaBlock ? (rdaBlock[rdaKey] as number | null) : null;
+                  const rdaPct     = rdaSrc !== null && rdaSrc !== undefined ? parseFloat((rdaSrc * rdaScale).toFixed(1)) : null;
                   const isSodiumHigh = key === "sodium_mg" && val100 !== null && val100 > SODIUM_THRESHOLD;
                   return (
                     <tr
@@ -541,11 +545,9 @@ export default function FSSAIClaimsPage() {
                 })}
               </tbody>
             </table>
-            {!rdaMatch && (
-              <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>
-                No RDA block found matching serving size {serving}g. %RDA values not available from sheet.
-              </div>
-            )}
+            <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>
+              %RDA scaled to {serving}g serving from {rdaBlock?.grammage ?? "—"}g RDA block (source: {servingSource}).
+            </div>
           </div>
         </>
       )}
