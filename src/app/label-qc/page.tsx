@@ -376,9 +376,6 @@ function Step2({ product, grammage, onBack }: { product: Product; grammage: numb
         )}
       </div>
 
-      {/* ── Label Preview Panel (below upload card, always visible once file selected) ── */}
-      {file && <LabelPreview file={file} />}
-
       {/* ── Loading skeleton ── */}
       {loading && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 28 }}>
@@ -408,11 +405,17 @@ function Step2({ product, grammage, onBack }: { product: Product; grammage: numb
               </div>
             )}
 
-            {/* 7-column comparison table */}
+            {/* Side-by-side: printed label preview + comparison table */}
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 Nutrient Comparison
               </div>
+              <div style={{ display: "grid", gridTemplateColumns: file ? "minmax(280px, 360px) 1fr" : "1fr", gap: 16, alignItems: "start" }}>
+                {file && (
+                  <div style={{ position: "sticky", top: 16 }}>
+                    <LabelPreview file={file} height={560} />
+                  </div>
+                )}
               <div style={{ overflowX: "auto", borderRadius: 8, border: "1px solid var(--border)" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
@@ -465,6 +468,7 @@ function Step2({ product, grammage, onBack }: { product: Product; grammage: numb
                     })}
                   </tbody>
                 </table>
+              </div>
               </div>
             </div>
 

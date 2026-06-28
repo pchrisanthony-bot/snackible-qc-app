@@ -8,7 +8,7 @@ const btn: React.CSSProperties = {
   fontSize: 13, lineHeight: 1,
 };
 
-export default function LabelPreview({ file }: { file: File }) {
+export default function LabelPreview({ file, height = 700 }: { file: File; height?: number }) {
   const canvasRef    = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const renderRef    = useRef<number>(0);           // cancel stale renders
@@ -133,7 +133,7 @@ export default function LabelPreview({ file }: { file: File }) {
       <div
         ref={containerRef}
         style={{
-          height: 700, overflowY: "auto", overflowX: "hidden",
+          height, overflowY: "auto", overflowX: "hidden",
           background: "var(--bg-base)",
           display: "flex", justifyContent: "center", alignItems: "flex-start",
           padding: "16px",
