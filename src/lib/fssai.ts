@@ -68,34 +68,48 @@ export function calcEnergy(n: NutritionBlock): number {
 }
 
 // ── Oil-based saturated-fat limits ──
-// Each rule: if oil keyword found in ingredients, saturated_fat must be ≤ maxPct of total_fat.
+// Saturated fat must be ≤ maxPct of total fat for the PRIMARY oil (first listed in ingredients).
+// FSSAI rule: ingredients must be listed in descending order by weight, so the first oil keyword
+// encountered is the dominant fat source.
 export const OIL_SAT_FAT_RULES: { name: string; pattern: RegExp; maxPct: number }[] = [
   { name: "Rice Bran Oil", pattern: /rice\s*bran\s*oil/i, maxPct: 25 },
   { name: "Sunflower Oil", pattern: /sunflower\s*oil/i,   maxPct: 15 },
 ];
 
 export type OilSatFatCheck = {
-  oil: string;
+  primaryOil: string;
   maxPct: number;
   actualPct: number | null;
   status: "pass" | "fail" | "no_data";
-};
+  otherOils: string[];   // other oils detected later in the ingredient list (informational only)
+} | null;
 
-export function checkOilSatFat(ingredients: string, n: NutritionBlock): OilSatFatCheck[] {
-  return OIL_SAT_FAT_RULES
-    .filter(r => r.pattern.test(ingredients))
+export function checkOilSatFat(ingredients: string, n: NutritionBlock): OilSatFatCheck {
+  // Find every rule that matches, with the position of its first occurrence in the ingredient string
+  const hits = OIL_SAT_FAT_RULES
     .map(r => {
-      const total = n.total_fat_g;
-      const sat   = n.saturated_fat_g;
-      if (sat === null || total === 0 || total === null) {
-        return { oil: r.name, maxPct: r.maxPct, actualPct: null, status: "no_data" as const };
-      }
-      const pct = (sat / total) * 100;
-      return {
-        oil: r.name,
-        maxPct: r.maxPct,
-        actualPct: parseFloat(pct.toFixed(1)),
-        status: pct <= r.maxPct ? "pass" as const : "fail" as const,
-      };
-    });
+      const m = r.pattern.exec(ingredients);
+      return m ? { rule: r, index: m.index } : null;
+    })
+    .filter((x): x is { rule: typeof OIL_SAT_FAT_RULES[number]; index: number } => x !== null)
+    .sort((a, b) => a.index - b.index);
+
+  if (hits.length === 0) return null;
+
+  const primary = hits[0].rule;
+  const others  = hits.slice(1).map(h => h.rule.name);
+
+  const total = n.total_fat_g;
+  const sat   = n.saturated_fat_g;
+  if (sat === null || total === 0 || total === null) {
+    return { primaryOil: primary.name, maxPct: primary.maxPct, actualPct: null, status: "no_data", otherOils: others };
+  }
+  const pct = (sat / total) * 100;
+  return {
+    primaryOil: primary.name,
+    maxPct: primary.maxPct,
+    actualPct: parseFloat(pct.toFixed(1)),
+    status: pct <= primary.maxPct ? "pass" : "fail",
+    otherOils: others,
+  };
 }

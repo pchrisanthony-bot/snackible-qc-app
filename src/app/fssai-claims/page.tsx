@@ -179,9 +179,9 @@ export default function FSSAIClaimsPage() {
   const sodiumVal        = n100?.sodium_mg ?? null;
   const sodiumStatus     = sodiumVal !== null && sodiumVal > SODIUM_THRESHOLD ? "warning" : "pass";
 
-  // ── Oil-based saturated-fat checks ──
-  const oilChecks = selected && n100 ? checkOilSatFat(selected.ingredients, n100) : [];
-  const anyOilFail = oilChecks.some(c => c.status === "fail");
+  // ── Oil-based saturated-fat check (primary oil only) ──
+  const oilCheck   = selected && n100 ? checkOilSatFat(selected.ingredients, n100) : null;
+  const anyOilFail = oilCheck?.status === "fail";
 
   // ── Per-serving values ──
   // Prefer the uploaded label's serving size when available; fall back to master sheet
@@ -471,39 +471,42 @@ export default function FSSAIClaimsPage() {
                 </div>
               </div>
 
-              {/* ── Oil-based saturated fat check ── */}
-              {oilChecks.length > 0 && (
+              {/* ── Oil-based saturated fat check (primary oil only) ── */}
+              {oilCheck && (
                 <div style={{ background: "var(--bg-surface)", border: "1px solid var(--border)", borderRadius: 10, padding: 18 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                     Oil-Based Saturated Fat Check
                   </div>
-                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 10 }}>
-                    Saturated fat as a % of total fat, capped by oil type detected in ingredients.
+                  <div style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 12 }}>
+                    Checked against the <strong style={{ color: "var(--text-secondary)" }}>primary oil</strong> (first listed — FSSAI requires ingredients in descending weight order).
                   </div>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                        <th style={{ padding: "6px 0", textAlign: "left", color: "var(--text-muted)", fontWeight: 600, fontSize: 11 }}>Oil Detected</th>
+                        <th style={{ padding: "6px 0", textAlign: "left", color: "var(--text-muted)", fontWeight: 600, fontSize: 11 }}>Primary Oil</th>
                         <th style={{ padding: "6px 0", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: 11 }}>Limit</th>
-                        <th style={{ padding: "6px 0", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: 11 }}>Actual</th>
+                        <th style={{ padding: "6px 0", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: 11 }}>Actual (Sat / Total)</th>
                         <th style={{ padding: "6px 0", textAlign: "right", color: "var(--text-muted)", fontWeight: 600, fontSize: 11 }}>Status</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {oilChecks.map((c) => (
-                        <tr key={c.oil} style={{ borderBottom: "1px solid var(--border)" }}>
-                          <td style={{ padding: "8px 0", color: "var(--text-primary)" }}>{c.oil}</td>
-                          <td style={{ padding: "8px 0", textAlign: "right", color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>≤ {c.maxPct}%</td>
-                          <td style={{ padding: "8px 0", textAlign: "right", color: c.status === "fail" ? "var(--accent-red)" : "var(--text-primary)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-                            {c.actualPct !== null ? `${c.actualPct}%` : "—"}
-                          </td>
-                          <td style={{ padding: "8px 0", textAlign: "right" }}>
-                            <StatusChip status={c.status === "pass" ? "pass" : c.status === "fail" ? "fail" : "neutral"} label={c.status === "no_data" ? "NO DATA" : undefined} />
-                          </td>
-                        </tr>
-                      ))}
+                      <tr>
+                        <td style={{ padding: "8px 0", color: "var(--text-primary)", fontWeight: 600 }}>{oilCheck.primaryOil}</td>
+                        <td style={{ padding: "8px 0", textAlign: "right", color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>≤ {oilCheck.maxPct}%</td>
+                        <td style={{ padding: "8px 0", textAlign: "right", color: oilCheck.status === "fail" ? "var(--accent-red)" : "var(--text-primary)", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+                          {oilCheck.actualPct !== null ? `${oilCheck.actualPct}%` : "—"}
+                        </td>
+                        <td style={{ padding: "8px 0", textAlign: "right" }}>
+                          <StatusChip status={oilCheck.status === "pass" ? "pass" : oilCheck.status === "fail" ? "fail" : "neutral"} label={oilCheck.status === "no_data" ? "NO DATA" : undefined} />
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
+                  {oilCheck.otherOils.length > 0 && (
+                    <div style={{ marginTop: 10, fontSize: 11, color: "var(--text-muted)" }}>
+                      Also detected (not validated — assumed trace): {oilCheck.otherOils.join(", ")}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
