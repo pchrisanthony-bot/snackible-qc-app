@@ -66,3 +66,36 @@ export function validateClaims(claims: string[], n100g: NutritionBlock): ClaimRe
 export function calcEnergy(n: NutritionBlock): number {
   return (n.carbohydrate_g * 4) + (n.protein_g * 4) + (n.total_fat_g * 9);
 }
+
+// ── Oil-based saturated-fat limits ──
+// Each rule: if oil keyword found in ingredients, saturated_fat must be ≤ maxPct of total_fat.
+export const OIL_SAT_FAT_RULES: { name: string; pattern: RegExp; maxPct: number }[] = [
+  { name: "Rice Bran Oil", pattern: /rice\s*bran\s*oil/i, maxPct: 25 },
+  { name: "Sunflower Oil", pattern: /sunflower\s*oil/i,   maxPct: 15 },
+];
+
+export type OilSatFatCheck = {
+  oil: string;
+  maxPct: number;
+  actualPct: number | null;
+  status: "pass" | "fail" | "no_data";
+};
+
+export function checkOilSatFat(ingredients: string, n: NutritionBlock): OilSatFatCheck[] {
+  return OIL_SAT_FAT_RULES
+    .filter(r => r.pattern.test(ingredients))
+    .map(r => {
+      const total = n.total_fat_g;
+      const sat   = n.saturated_fat_g;
+      if (sat === null || total === 0 || total === null) {
+        return { oil: r.name, maxPct: r.maxPct, actualPct: null, status: "no_data" as const };
+      }
+      const pct = (sat / total) * 100;
+      return {
+        oil: r.name,
+        maxPct: r.maxPct,
+        actualPct: parseFloat(pct.toFixed(1)),
+        status: pct <= r.maxPct ? "pass" as const : "fail" as const,
+      };
+    });
+}
