@@ -296,7 +296,7 @@ function Step2({ product, grammage, onBack }: { product: Product; grammage: numb
         </div>
       </div>
 
-      {/* ── LABEL UPLOAD CARD (full width, centred preview) ── */}
+      {/* ── LABEL UPLOAD CARD ── */}
       <div style={{ marginBottom: 28, background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
         <div style={{ padding: "10px 16px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid var(--border)" }}>
           Label Upload
@@ -317,6 +317,19 @@ function Step2({ product, grammage, onBack }: { product: Product; grammage: numb
             <div style={{ color: "var(--text-muted)", fontSize: 12 }}>JPG, PNG, or PDF supported</div>
             <input ref={fileInputRef} type="file" accept="image/*,.pdf" style={{ display: "none" }}
               onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
+          </div>
+        ) : result ? (
+          /* Compact bar once results are loaded — preview moves to sticky panel */
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px" }}>
+            <span style={{ fontSize: 16 }}>{preview ? "🖼️" : "📄"}</span>
+            <span style={{ flex: 1, color: "var(--text-primary)", fontSize: 13, fontWeight: 500 }}>{file.name}</span>
+            <span style={{ fontSize: 11, color: "var(--accent-teal)", fontWeight: 600 }}>✓ Analyzed</span>
+            <button
+              onClick={() => { setFile(null); setPreview(null); setResult(null); setOcrError(null); }}
+              style={{ padding: "7px 14px", borderRadius: 6, border: "1px solid var(--border)", background: "transparent", color: "var(--text-muted)", cursor: "pointer", fontSize: 12 }}
+            >
+              Re-upload
+            </button>
           </div>
         ) : (
           <div>
@@ -379,112 +392,74 @@ function Step2({ product, grammage, onBack }: { product: Product; grammage: numb
 
       {/* ── QC RESULTS ── */}
       {result && masterBlock && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div style={{ display: "grid", gridTemplateColumns: preview ? "1fr 300px" : "1fr", gap: 28, alignItems: "start" }}>
 
-          {/* Serving size banner */}
-          {hasServingSizeDiff && (
-            <div style={{ background: "rgba(255,192,0,0.08)", border: "1px solid rgba(255,192,0,0.35)", borderRadius: 8, padding: "10px 16px", color: "var(--accent-amber)", fontSize: 13 }}>
-              <strong>Serving size note: </strong>
-              Label nutrition is printed for {labelG}g. Scaled to {grammage}g for master comparison.
-            </div>
-          )}
+          {/* ── LEFT: all QC content ── */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
 
-          {/* 7-column comparison table */}
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Nutrient Comparison
-            </div>
-            <div style={{ overflowX: "auto", borderRadius: 8, border: "1px solid var(--border)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-                <thead>
-                  <tr>
-                    <th style={{ ...thCell, textAlign: "left" }}>Nutrient</th>
-                    <th style={{ ...thCell, textAlign: "right" }}>
-                      Master<br /><span style={{ fontWeight: 400, opacity: 0.65 }}>({grammage}g)</span>
-                    </th>
-                    <th style={{ ...thCell, textAlign: "right" }}>
-                      Label Data<br /><span style={{ fontWeight: 400, opacity: 0.65 }}>({labelG ?? grammage}g)</span>
-                    </th>
-                    <th style={{ ...thCell, textAlign: "right" }}>
-                      Serving Size Data<br /><span style={{ fontWeight: 400, opacity: 0.65 }}>({grammage}g)</span>
-                    </th>
-                    <th style={{ ...thCell, textAlign: "right" }}>%RDA</th>
-                    <th style={{ ...thCell, textAlign: "right" }}>Deviation</th>
-                    <th style={{ ...thCell, textAlign: "right" }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {NUTRIENT_ROWS.map(({ label, masterKey, ocrKey, rdaKey, unit, absFloor }) => {
-                    const masterVal    = (masterBlock[masterKey] as number | null) ?? 0;
-                    const labelData    = (result.nutrition_table?.[ocrKey] as number | null) ?? 0;
-                    const ssd          = parseFloat((labelData * scaleFactor).toFixed(2));
-                    const rdaVal       = rdaKey ? (rdaBlock?.[rdaKey] as number | null) ?? null : null;
-                    const deviation    = masterVal !== 0 ? ((ssd - masterVal) / Math.abs(masterVal)) * 100 : null;
-                    const devFormatted = deviation != null ? `${deviation >= 0 ? "+" : ""}${deviation.toFixed(1)}%` : "—";
-                    const status       = calcStatus(masterVal, ssd, absFloor);
-                    const devColor     = status === "CRITICAL" ? "#E84040" : status === "WARNING" ? "#FFC000" : "#06AA90";
+            {/* Serving size banner */}
+            {hasServingSizeDiff && (
+              <div style={{ background: "rgba(255,192,0,0.08)", border: "1px solid rgba(255,192,0,0.35)", borderRadius: 8, padding: "10px 16px", color: "var(--accent-amber)", fontSize: 13 }}>
+                <strong>Serving size note: </strong>
+                Label nutrition is printed for {labelG}g. Scaled to {grammage}g for master comparison.
+              </div>
+            )}
 
-                    return (
-                      <tr key={masterKey} style={{ borderBottom: "1px solid var(--border)" }}>
-                        <td style={{ padding: "8px 12px", color: "var(--text-secondary)", fontWeight: 500 }}>{label}</td>
-                        <td style={{ padding: "8px 12px", textAlign: "right", color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>
-                          {masterVal}{unit}
-                        </td>
-                        <td style={{ padding: "8px 12px", textAlign: "right", color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
-                          {labelData}{unit}
-                        </td>
-                        <td style={{ padding: "8px 12px", textAlign: "right", color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>
-                          {ssd}{unit}
-                        </td>
-                        <td style={{ padding: "8px 12px", textAlign: "right", color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
-                          {rdaVal != null ? `${rdaVal}%` : "—"}
-                        </td>
-                        <td style={{ padding: "8px 12px", textAlign: "right", color: devColor, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
-                          {devFormatted}
-                        </td>
-                        <td style={{ padding: "8px 12px", textAlign: "right" }}>
-                          <StatusChip status={status} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Allergen check */}
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Allergen Check
-            </div>
-            {detectedAllergens.length === 0 ? (
-              <div style={{ color: "var(--text-muted)", fontSize: 13 }}>No allergens detected in ingredients.</div>
-            ) : (
-              <div style={{ borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden" }}>
+            {/* 7-column comparison table */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Nutrient Comparison
+              </div>
+              <div style={{ overflowX: "auto", borderRadius: 8, border: "1px solid var(--border)" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
                     <tr>
-                      {["Allergen", "In Ingredients", "Declared on Label", "Status"].map((h) => (
-                        <th key={h} style={{ ...thCell, textAlign: "left" }}>{h}</th>
-                      ))}
+                      <th style={{ ...thCell, textAlign: "left" }}>Nutrient</th>
+                      <th style={{ ...thCell, textAlign: "right" }}>
+                        Master<br /><span style={{ fontWeight: 400, opacity: 0.65 }}>({grammage}g)</span>
+                      </th>
+                      <th style={{ ...thCell, textAlign: "right" }}>
+                        Label Data<br /><span style={{ fontWeight: 400, opacity: 0.65 }}>({labelG ?? grammage}g)</span>
+                      </th>
+                      <th style={{ ...thCell, textAlign: "right" }}>
+                        Serving Size Data<br /><span style={{ fontWeight: 400, opacity: 0.65 }}>({grammage}g)</span>
+                      </th>
+                      <th style={{ ...thCell, textAlign: "right" }}>%RDA</th>
+                      <th style={{ ...thCell, textAlign: "right" }}>Deviation</th>
+                      <th style={{ ...thCell, textAlign: "right" }}>Status</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {detectedAllergens.map((allergen) => {
-                      const isDeclared = declaredAllergens.some((d) =>
-                        d.includes(allergen.toLowerCase().split(" ")[0]) ||
-                        allergen.toLowerCase().split(" ").some((w) => d.includes(w))
-                      );
+                    {NUTRIENT_ROWS.map(({ label, masterKey, ocrKey, rdaKey, unit, absFloor }) => {
+                      const masterVal    = (masterBlock[masterKey] as number | null) ?? 0;
+                      const labelData    = (result.nutrition_table?.[ocrKey] as number | null) ?? 0;
+                      const ssd          = parseFloat((labelData * scaleFactor).toFixed(2));
+                      const rdaVal       = rdaKey ? (rdaBlock?.[rdaKey] as number | null) ?? null : null;
+                      const deviation    = masterVal !== 0 ? ((ssd - masterVal) / Math.abs(masterVal)) * 100 : null;
+                      const devFormatted = deviation != null ? `${deviation >= 0 ? "+" : ""}${deviation.toFixed(1)}%` : "—";
+                      const status       = calcStatus(masterVal, ssd, absFloor);
+                      const devColor     = status === "CRITICAL" ? "#E84040" : status === "WARNING" ? "#FFC000" : "#06AA90";
+
                       return (
-                        <tr key={allergen} style={{ borderBottom: "1px solid var(--border)" }}>
-                          <td style={{ padding: "8px 12px", color: "var(--text-primary)" }}>{allergen}</td>
-                          <td style={{ padding: "8px 12px", color: "var(--accent-teal)" }}>✓ Yes</td>
-                          <td style={{ padding: "8px 12px", color: isDeclared ? "var(--accent-teal)" : "var(--accent-red)" }}>
-                            {isDeclared ? "✓ Yes" : "✗ No"}
+                        <tr key={masterKey} style={{ borderBottom: "1px solid var(--border)" }}>
+                          <td style={{ padding: "8px 12px", color: "var(--text-secondary)", fontWeight: 500 }}>{label}</td>
+                          <td style={{ padding: "8px 12px", textAlign: "right", color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>
+                            {masterVal}{unit}
                           </td>
-                          <td style={{ padding: "8px 12px" }}>
-                            <StatusChip status={isDeclared ? "PASS" : "CRITICAL"} />
+                          <td style={{ padding: "8px 12px", textAlign: "right", color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                            {labelData}{unit}
+                          </td>
+                          <td style={{ padding: "8px 12px", textAlign: "right", color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>
+                            {ssd}{unit}
+                          </td>
+                          <td style={{ padding: "8px 12px", textAlign: "right", color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                            {rdaVal != null ? `${rdaVal}%` : "—"}
+                          </td>
+                          <td style={{ padding: "8px 12px", textAlign: "right", color: devColor, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+                            {devFormatted}
+                          </td>
+                          <td style={{ padding: "8px 12px", textAlign: "right" }}>
+                            <StatusChip status={status} />
                           </td>
                         </tr>
                       );
@@ -492,31 +467,96 @@ function Step2({ product, grammage, onBack }: { product: Product; grammage: numb
                   </tbody>
                 </table>
               </div>
+            </div>
+
+            {/* Allergen check */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Allergen Check
+              </div>
+              {detectedAllergens.length === 0 ? (
+                <div style={{ color: "var(--text-muted)", fontSize: 13 }}>No allergens detected in ingredients.</div>
+              ) : (
+                <div style={{ borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                    <thead>
+                      <tr>
+                        {["Allergen", "In Ingredients", "Declared on Label", "Status"].map((h) => (
+                          <th key={h} style={{ ...thCell, textAlign: "left" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detectedAllergens.map((allergen) => {
+                        const isDeclared = declaredAllergens.some((d) =>
+                          d.includes(allergen.toLowerCase().split(" ")[0]) ||
+                          allergen.toLowerCase().split(" ").some((w) => d.includes(w))
+                        );
+                        return (
+                          <tr key={allergen} style={{ borderBottom: "1px solid var(--border)" }}>
+                            <td style={{ padding: "8px 12px", color: "var(--text-primary)" }}>{allergen}</td>
+                            <td style={{ padding: "8px 12px", color: "var(--accent-teal)" }}>✓ Yes</td>
+                            <td style={{ padding: "8px 12px", color: isDeclared ? "var(--accent-teal)" : "var(--accent-red)" }}>
+                              {isDeclared ? "✓ Yes" : "✗ No"}
+                            </td>
+                            <td style={{ padding: "8px 12px" }}>
+                              <StatusChip status={isDeclared ? "PASS" : "CRITICAL"} />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Approve / Reject */}
+            <div style={{ display: "flex", gap: 12 }}>
+              <button
+                style={{ flex: 1, padding: "13px", borderRadius: 8, border: "1px solid var(--accent-red)", background: "transparent", color: "var(--accent-red)", fontWeight: 700, cursor: "pointer", fontSize: 14 }}
+              >
+                Reject
+              </button>
+              <button
+                disabled={!!hasCritical}
+                style={{
+                  flex: 3, padding: "13px", borderRadius: 8, border: "none",
+                  background: hasCritical ? "var(--bg-elevated)" : "var(--accent-teal)",
+                  color: hasCritical ? "var(--text-muted)" : "#003433",
+                  fontWeight: 700, cursor: hasCritical ? "not-allowed" : "pointer", fontSize: 14,
+                }}
+              >
+                Approve for Print ✓
+              </button>
+            </div>
+            {hasCritical && (
+              <div style={{ fontSize: 12, color: "var(--accent-red)", textAlign: "center", marginTop: -12 }}>
+                Resolve all CRITICAL issues before approving.
+              </div>
             )}
           </div>
 
-          {/* Approve / Reject */}
-          <div style={{ display: "flex", gap: 12 }}>
-            <button
-              style={{ flex: 1, padding: "13px", borderRadius: 8, border: "1px solid var(--accent-red)", background: "transparent", color: "var(--accent-red)", fontWeight: 700, cursor: "pointer", fontSize: 14 }}
-            >
-              Reject
-            </button>
-            <button
-              disabled={!!hasCritical}
-              style={{
-                flex: 3, padding: "13px", borderRadius: 8, border: "none",
-                background: hasCritical ? "var(--bg-elevated)" : "var(--accent-teal)",
-                color: hasCritical ? "var(--text-muted)" : "#003433",
-                fontWeight: 700, cursor: hasCritical ? "not-allowed" : "pointer", fontSize: 14,
-              }}
-            >
-              Approve for Print ✓
-            </button>
-          </div>
-          {hasCritical && (
-            <div style={{ fontSize: 12, color: "var(--accent-red)", textAlign: "center", marginTop: -12 }}>
-              Resolve all CRITICAL issues before approving.
+          {/* ── RIGHT: sticky label preview (image files only) ── */}
+          {preview && (
+            <div style={{ position: "sticky", top: 24 }}>
+              <div style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+                <div style={{ padding: "8px 14px", fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: "1px solid var(--border)" }}>
+                  Label Preview
+                </div>
+                <div style={{ padding: 12, background: "var(--bg-base)", display: "flex", justifyContent: "center" }}>
+                  <img
+                    src={preview}
+                    alt="Label"
+                    style={{ maxWidth: "100%", maxHeight: 500, objectFit: "contain", borderRadius: 6 }}
+                  />
+                </div>
+                {hasServingSizeDiff && (
+                  <div style={{ padding: "8px 14px", fontSize: 11, color: "var(--accent-teal)", borderTop: "1px solid var(--border)" }}>
+                    Label is per {labelG}g — scaled ×{(grammage / (labelG ?? grammage)).toFixed(3)} to {grammage}g
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
